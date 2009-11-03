@@ -332,8 +332,12 @@ random
         require 'launchy'
 
         @helper.should_receive(:gem).with('launchy')
+        launcher_command = '/usr/bin/open'
+        if RUBY_PLATFORM =~ /linux/ 
+          launcher_command = '/usr/bin/xdg-open'
+        end
         Launchy::Browser.next_instance.tap do |browser|
-          browser.should_receive(:run).with('/usr/bin/open', "http://www.google.com")
+          browser.should_receive(:run).with(launcher_command, "http://www.google.com")
           @helper.open "http://www.google.com"
         end
       rescue LoadError
