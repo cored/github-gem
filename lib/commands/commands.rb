@@ -37,7 +37,6 @@ command :open do |arg|
   helper.open "http://github.com/#{arg}"
 end
 
-
 desc "Info about this project."
 command :info do
   puts "== Info for #{helper.project}"
@@ -104,7 +103,7 @@ command :pull do |user, branch|
   die "Specify a user to pull from" if user.nil?
   user, branch = user.split("/", 2) if branch.nil?
 
-  if !helper.network_members.include?(user)
+  if !helper.network_members(user, {}).include?(user)
     git_exec "#{helper.argv.join(' ')}".strip
     return
   end
@@ -126,13 +125,29 @@ end
 desc "Clone a repo. Uses ssh if current user is "
 usage "github clone [user] [repo] [dir]"
 flags :ssh => "Clone using the git@github.com style url."
+flags :search => "Search for [user|repo] and clone selected repository"
 command :clone do |user, repo, dir|
   die "Specify a user to pull from" if user.nil?
+  if options[:search]
+    query = [user, repo, dir].compact.join(" ")
+    data = JSON.parse(open("http://github.com/api/v1/json/search/#{URI.escape query}").read)
+    if (repos = data['repositories']) && !repos.nil? && repos.length > 0
+      repo_list = repos.map do |r|
+        { "name" => "#{r['username']}/#{r['name']}", "description" => r['description'] }
+      end
+      formatted_list = helper.format_list(repo_list).split("\n")
+      if user_repo = GitHub::UI.display_select_list(formatted_list)
+        user, repo = user_repo.strip.split('/', 2)
+      end
+    end
+    die "Perhaps try another search" unless user && repo
+  end
+
   if user.include?('/') && !user.include?('@') && !user.include?(':')
     die "Expected user/repo dir, given extra argument" if dir
     (user, repo), dir = [user.split('/', 2), repo]
   end
-  
+
   if repo
     if options[:ssh] || current_user?(user)
       git_exec "clone git@github.com:#{user}/#{repo}.git" + (dir ? " #{dir}" : "")
@@ -146,7 +161,7 @@ end
 
 desc "Generate the text for a pull request."
 usage "github pull-request [user] [branch]"
-command 'pull-request' do |user, branch|
+command :'pull-request' do |user, branch|
   if helper.project
     die "Specify a user for the pull request" if user.nil?
     user, branch = user.split('/', 2) if branch.nil?
@@ -211,7 +226,7 @@ end
 
 desc "Create a new GitHub repository from the current local repository"
 flags :private => 'Create private repository'
-command 'create-from-local' do
+command :'create-from-local' do
   cwd = sh "pwd"
   repo = File.basename(cwd)
   is_repo = !git("status").match(/fatal/)
@@ -224,11 +239,11 @@ end
 desc "Search GitHub for the given repository name."
 usage "github search [query]"
 command :search do |query|
+  die "Usage: github search [query]" if query.nil?
   data = JSON.parse(open("http://github.com/api/v1/json/search/#{URI.escape query}").read)
-
-  if repos = data['repositories']
+  if (repos = data['repositories']) && !repos.nil? && repos.length > 0
     puts repos.map { |r| "#{r['username']}/#{r['name']}"}.sort.uniq
   else
-    puts "Not found"
+    puts "No results found"
   end
 end

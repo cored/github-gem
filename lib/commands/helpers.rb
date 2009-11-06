@@ -250,8 +250,8 @@ helper :network_meta_for do |user|
   "http://github.com/#{user}/#{project}/network_meta"
 end
 
-helper :network_members_for do |user|
-  "http://github.com/#{user}/#{project}/network/members.json"
+helper :issues_page_for do |user|
+  "https://github.com/#{user}/#{project}/issues"
 end
 
 helper :list_issues_for do |user, state|
@@ -320,8 +320,8 @@ helper :argv do
   GitHub.original_args
 end
 
-helper :network_members do
-  get_network_members(owner, {}).map {|member| member['owner']['login'] }
+helper :network_members do |user, options|
+  get_network_data(user, options)['users'].map { |u| u['name'] }
 end
 
 
@@ -341,11 +341,6 @@ helper :get_network_data do |user, options|
   else
     return get_cache
   end
-end
-
-helper :get_network_members do |user, options|
-  json = Kernel.open(network_members_for(user)).read
-  JSON.parse(json)["users"]
 end
 
 helper :cache_commits do |commits|
@@ -418,11 +413,10 @@ end
 
 helper :distance_of_time do |from_time, to_time|
   # this is a dumbed-down version of actionpack's helper.
-  from_time = from_time.to_time if from_time.respond_to?(:to_time)
-  to_time = to_time.to_time if to_time.respond_to?(:to_time)
+  from_time = Time.parse(from_time) if from_time.is_a?(String)
+  to_time   = Time.parse(to_time) if to_time.is_a?(String)
 
   distance_in_minutes = (((to_time - from_time).abs)/60).round
-
   words = case distance_in_minutes
           when 0               then "less than 1 minute"
           when 2..44           then "%d minutes" % distance_in_minutes
@@ -452,6 +446,25 @@ helper :format_issue do |issue, options|
   report << issue['body']
   report << ""
   report.join("\n")
+end
+
+# Converts an array of {"name" => "foo", "description" => "some description"} items
+# as a string list like:
+#   foo     # some description
+#   bar-tar # another description
+helper :format_list do |items|
+  longest_name = items.inject("") do |name, item|
+    name = item["name"] if item["name"] && item["name"].size > name.size
+    name
+  end
+  longest = longest_name.size + 1
+  lines = items.map do |item|
+    cmdstr = "%-#{longest}s" % item["name"]
+    if (description = item["description"]) && description.length > 0
+      cmdstr += "# #{description}"
+    end
+    cmdstr
+  end.join("\n")
 end
 
 helper :filter_issue do |issue, options|

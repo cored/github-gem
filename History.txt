@@ -1,3 +1,31 @@
+== 0.4.0
+
+Releasing to GemCutter!
+
+Maintenance taken over by Dr Nic Williams.
+Post issues/bugs to http://github.com/defunkt/github-gem/issues
+
+New Commands:
+  * gh issues web [user] - opens the Issues page
+
+Miscellaneous:
+  * no longer using old /network/members API call (which is 500ing at the moment)
+
+== 0.3.10
+
+* gh clone --search query -- now includes project descriptions
+* bugfix
+  * added highline dependency
+
+== 0.3.9
+
+* gh clone --search query -- to search for a repo and then clone it
+* fixed all the specs and started covering some commands that did not already have specs
+
+== 0.3.X
+
+* Some stuff done by some people
+
 == 0.1.4
 
 * Added usage notes to commands. [topfunky]

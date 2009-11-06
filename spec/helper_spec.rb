@@ -1,4 +1,4 @@
-require File.dirname(__FILE__) + '/spec_helper'
+require File.expand_path(File.dirname(__FILE__) + '/spec_helper')
 
 class HelperRunner
   def initialize(parent, name)
@@ -31,6 +31,22 @@ describe GitHub::Helper do
     @helper = GitHub::Helper.new
   end
 
+  helper :format_list do
+    it "should format an array of hashes with name,description keys" do
+      list = [{"name" => "aaa", "description" => "description for aaa"}, 
+        {"name" => "a long name", "description" => "help"},
+        {"name" => "no desc"},
+        {"name" => "empty desc", "description" => ""}]
+      expected = <<-EOS.gsub(/^      /, '')
+      aaa         # description for aaa
+      a long name # help
+      no desc     
+      empty desc  
+      EOS
+      @helper.format_list(list).should == expected.gsub(/\n$/,'')
+    end
+  end
+  
   helper :print_issues_help do
     it "should exist" do
       @helper.should respond_to(:print_issues_help)
@@ -329,15 +345,13 @@ random
   helper :open do
     it "should launch the URL when Launchy is installed" do
       begin
+        # tricking launchy into thinking there is always a browser
+        ENV['LAUNCHY_BROWSER'] = dummy_browser = __FILE__
         require 'launchy'
 
         @helper.should_receive(:gem).with('launchy')
-        launcher_command = '/usr/bin/open'
-        if RUBY_PLATFORM =~ /linux/ 
-          launcher_command = '/usr/bin/xdg-open'
-        end
         Launchy::Browser.next_instance.tap do |browser|
-          browser.should_receive(:run).with(launcher_command, "http://www.google.com")
+          browser.should_receive(:run).with(dummy_browser, "http://www.google.com")
           @helper.open "http://www.google.com"
         end
       rescue LoadError
